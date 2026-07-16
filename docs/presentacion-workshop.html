@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workshop · Claude Code: Agentes, Skills y Contexto</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* === THEME === */
+:root {
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --surface: rgba(15, 23, 42, 0.6);
+  --border: rgba(51, 65, 85, 0.6);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --accent: #22d3ee;
+  --accent-secondary: #8b5cf6;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --title-size: clamp(1.9rem, 5vw, 4.2rem);
+  --body-size: clamp(0.85rem, 1.5vw, 1.15rem);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* === VIEWPORT BASE === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+body {
+  overflow-x: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+.slide {
+  width: 100vw; height: 100vh; height: 100dvh;
+  overflow: hidden; position: relative;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  padding: clamp(1.5rem, 4vw, 4rem);
+}
+.slide-content { width: 100%; max-width: min(92vw, 1180px); max-height: 100%; overflow: hidden; }
+
+.slide-title {
+  font-family: var(--font-heading);
+  font-size: var(--title-size);
+  font-weight: 700; line-height: 1.05; letter-spacing: -0.03em;
+  margin-bottom: clamp(0.5rem, 1.5vw, 1.2rem);
+}
+.slide-subtitle {
+  font-size: clamp(0.95rem, 2vw, 1.6rem); font-weight: 400;
+  color: var(--text-secondary); line-height: 1.35;
+  margin-bottom: clamp(0.5rem, 1.5vw, 1rem);
+}
+.slide-body { font-size: var(--body-size); line-height: 1.6; color: var(--text-primary); }
+.slide-caption { font-size: clamp(0.7rem, 1.1vw, 0.9rem); color: var(--text-secondary); }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(0.8rem, 1.8vw, 1.8rem); width: 100%; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: clamp(0.8rem, 1.8vw, 1.6rem); width: 100%; }
+.split-layout { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1.2rem, 3vw, 3rem); width: 100%; align-items: center; }
+.split-layout.asymmetric { grid-template-columns: 3fr 2fr; }
+
+@media (max-height: 700px) { .slide { padding: clamp(1rem, 2vw, 2rem); } .slide-title { font-size: clamp(1.4rem, 4vw, 2.6rem); } }
+@media (max-height: 600px) { .nav { display: none; } }
+@media (max-height: 500px) { .slide { padding: 0.75rem; } .slide-title { font-size: clamp(1.2rem, 3.5vw, 1.9rem); } .slide-body { font-size: clamp(0.72rem, 1.4vw, 0.95rem); } }
+@media (max-width: 700px) { .split-layout, .split-layout.asymmetric, .grid-2 { grid-template-columns: 1fr; } }
+
+/* === REVEALS === */
+.reveal { opacity: 0; transform: translateY(22px); transition: opacity .6s var(--ease-out-expo), transform .6s var(--ease-out-expo); }
+.reveal-scale { opacity: 0; transform: scale(.94); transition: opacity .6s var(--ease-out-expo), transform .6s var(--ease-out-expo); }
+.reveal-left { opacity: 0; transform: translateX(-32px); transition: opacity .6s var(--ease-out-expo), transform .6s var(--ease-out-expo); }
+.reveal-blur { opacity: 0; filter: blur(12px); transition: opacity .8s var(--ease-out-expo), filter .8s var(--ease-out-expo); }
+.reveal.visible, .reveal-scale.visible, .reveal-left.visible, .reveal-blur.visible { opacity: 1; transform: none; filter: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-scale, .reveal-left, .reveal-blur { opacity: 1; transform: none; filter: none; transition: none; }
+  .glow-orb, .pulse { animation: none !important; }
+}
+
+/* === NAV === */
+.nav { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: .45rem; z-index: 100; }
+.nav-dot { width: 7px; height: 7px; border-radius: 50%; background: #334155; border: none; cursor: pointer; transition: all .3s ease; padding: 0; }
+.nav-dot.active { background: var(--accent); transform: scale(1.45); box-shadow: 0 0 12px var(--accent); }
+.progress-bar { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-secondary)); transition: width .35s ease; z-index: 100; }
+.slide-num { position: fixed; bottom: 1.1rem; right: 1.4rem; font-family: var(--font-mono); font-size: .72rem; color: #475569; z-index: 100; letter-spacing: .1em; }
+
+/* === DECORATION === */
+.glow-orb {
+  position: absolute; border-radius: 50%; filter: blur(90px); opacity: .18; pointer-events: none;
+  animation: float 14s ease-in-out infinite;
+}
+.orb-cyan { background: var(--accent); width: 42vw; height: 42vw; top: -12vw; left: -10vw; }
+.orb-violet { background: var(--accent-secondary); width: 38vw; height: 38vw; bottom: -14vw; right: -8vw; animation-delay: -7s; }
+@keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(3vw,-3vw) scale(1.12); } }
+
+.grid-bg {
+  position: absolute; inset: 0; pointer-events: none; opacity: .35;
+  background-image: linear-gradient(rgba(34,211,238,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.06) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at center, #000 20%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 72%);
+}
+
+/* === COMPONENTS === */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-family: var(--font-mono); font-size: clamp(.62rem, 1vw, .78rem);
+  letter-spacing: .22em; text-transform: uppercase; color: var(--accent);
+  border: 1px solid rgba(34,211,238,.25); background: rgba(34,211,238,.07);
+  padding: .35rem .8rem; border-radius: 999px; margin-bottom: clamp(.7rem, 1.6vw, 1.4rem);
+}
+.eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.pulse { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+.card {
+  background: var(--surface); backdrop-filter: blur(16px);
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: clamp(.85rem, 1.7vw, 1.5rem);
+  transition: border-color .3s ease, transform .3s ease;
+}
+.card:hover { border-color: rgba(34,211,238,.45); transform: translateY(-3px); }
+.card h3 { font-family: var(--font-heading); font-size: clamp(.95rem, 1.7vw, 1.3rem); margin-bottom: .4rem; letter-spacing: -.01em; }
+.card p { font-size: clamp(.78rem, 1.3vw, 1rem); color: var(--text-secondary); line-height: 1.55; }
+
+.card-num {
+  font-family: var(--font-mono); font-size: .72rem; color: var(--accent);
+  border: 1px solid rgba(34,211,238,.3); border-radius: 6px; padding: .1rem .4rem;
+  display: inline-block; margin-bottom: .6rem;
+}
+
+.gradient-text { background: linear-gradient(100deg, var(--accent), var(--accent-secondary) 70%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.glow-text { text-shadow: 0 0 42px rgba(34,211,238,.45); }
+.accent { color: var(--accent); }
+.violet { color: var(--accent-secondary); }
+.muted { color: var(--text-secondary); }
+
+.pill {
+  display: inline-block; font-family: var(--font-mono);
+  font-size: clamp(.66rem, 1.1vw, .82rem); padding: .3rem .7rem;
+  border-radius: 999px; border: 1px solid; margin: .2rem .18rem;
+}
+.pill-cyan { background: rgba(34,211,238,.1); color: var(--accent); border-color: rgba(34,211,238,.25); }
+.pill-violet { background: rgba(139,92,246,.1); color: #a78bfa; border-color: rgba(139,92,246,.28); }
+.pill-slate { background: rgba(100,116,139,.1); color: #cbd5e1; border-color: rgba(100,116,139,.28); }
+.pill-ok { background: rgba(52,211,153,.1); color: var(--ok); border-color: rgba(52,211,153,.28); }
+.pill-warn { background: rgba(251,191,36,.1); color: var(--warn); border-color: rgba(251,191,36,.28); }
+
+.bullets { list-style: none; display: flex; flex-direction: column; gap: clamp(.5rem, 1.2vw, 1rem); }
+.bullets li { display: flex; gap: .8rem; align-items: flex-start; font-size: var(--body-size); line-height: 1.5; }
+.bullets li::before { content: ''; flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-top: .55em; box-shadow: 0 0 10px rgba(34,211,238,.7); }
+.bullets li b { color: #fff; font-weight: 600; }
+
+.code-block {
+  background: #0b1120; border: 1px solid var(--border); border-radius: 12px;
+  padding: clamp(.7rem, 1.4vw, 1.2rem);
+  font-family: var(--font-mono); font-size: clamp(.62rem, 1.05vw, .88rem);
+  line-height: 1.65; white-space: pre; overflow: auto;
+  max-height: min(46vh, 420px);
+}
+.code-block::-webkit-scrollbar { height: 6px; width: 6px; }
+.code-block::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+.c-key { color: #8b5cf6; } .c-str { color: #34d399; } .c-com { color: #475569; font-style: italic; }
+.c-fn { color: #22d3ee; } .c-tag { color: #f472b6; }
+
+.metric { font-family: var(--font-heading); font-size: clamp(1.8rem, 4.5vw, 3.4rem); font-weight: 700; line-height: 1; letter-spacing: -.03em; }
+
+.timeline { display: flex; flex-direction: column; gap: 0; border-left: 2px solid rgba(34,211,238,.22); padding-left: clamp(1rem, 2vw, 1.8rem); margin-left: .4rem; }
+.tl-item { position: relative; padding: clamp(.5rem, 1.1vw, .9rem) 0; }
+.tl-item::before { content: ''; position: absolute; left: calc(-1 * clamp(1rem, 2vw, 1.8rem) - 6px); top: 1.15em; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+.tl-time { font-family: var(--font-mono); font-size: clamp(.64rem, 1vw, .78rem); color: var(--accent); letter-spacing: .1em; }
+.tl-title { font-family: var(--font-heading); font-weight: 500; font-size: clamp(.9rem, 1.6vw, 1.25rem); }
+.tl-desc { font-size: clamp(.74rem, 1.2vw, .95rem); color: var(--text-secondary); }
+
+.arrow-flow { display: flex; align-items: center; justify-content: center; gap: clamp(.4rem, 1.2vw, 1.2rem); flex-wrap: wrap; }
+.flow-node {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 12px;
+  padding: clamp(.55rem, 1.2vw, 1rem) clamp(.7rem, 1.5vw, 1.3rem); text-align: center;
+  font-family: var(--font-mono); font-size: clamp(.66rem, 1.15vw, .9rem);
+}
+.flow-node.hot { border-color: rgba(34,211,238,.5); color: var(--accent); box-shadow: 0 0 30px rgba(34,211,238,.12); }
+.flow-arrow { color: #475569; font-size: clamp(.9rem, 1.6vw, 1.3rem); }
+
+.bar-track { height: 10px; border-radius: 999px; background: rgba(51,65,85,.5); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-secondary)); width: 0; transition: width 1.2s var(--ease-out-expo); }
+
+table.cmp { width: 100%; border-collapse: collapse; font-size: clamp(.72rem, 1.25vw, 1rem); }
+table.cmp th, table.cmp td { text-align: left; padding: clamp(.45rem, 1vw, .8rem) clamp(.4rem, .9vw, .9rem); border-bottom: 1px solid var(--border); }
+table.cmp th { font-family: var(--font-mono); font-size: clamp(.62rem, 1vw, .8rem); text-transform: uppercase; letter-spacing: .12em; color: var(--accent); font-weight: 500; }
+table.cmp td:first-child { font-family: var(--font-mono); color: #fff; }
+table.cmp tr:last-child td { border-bottom: none; }
+
+kbd { font-family: var(--font-mono); font-size: .85em; background: #1e293b; border: 1px solid #334155; border-bottom-width: 2px; border-radius: 5px; padding: .1em .45em; color: #e2e8f0; }
+
+.section-divider .slide-title { font-size: clamp(2.2rem, 8vw, 6.5rem); }
+
+@media print {
+  .slide { page-break-after: always; height: 100vh; overflow: hidden; }
+  .nav, .progress-bar, .slide-num { display: none; }
+  .reveal, .reveal-scale, .reveal-left, .reveal-blur { opacity: 1; transform: none; filter: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progress"></div>
+<div class="slide-num" id="slideNum">01</div>
+
+<!-- 01 — TITLE -->
+<section class="slide">
+  <div class="glow-orb orb-cyan"></div>
+  <div class="glow-orb orb-violet"></div>
+  <div class="grid-bg"></div>
+  <div class="slide-content" style="text-align:center; position:relative;">
+    <span class="eyebrow reveal"><span class="dot pulse"></span>Workshop · 60 minutos · Hands-on</span>
+    <h1 class="slide-title reveal glow-text">Construyendo con<br><span class="gradient-text">Claude Code</span></h1>
+    <p class="slide-subtitle reveal">Agentes LM, Skills, Contexto y Tokens — y un SPA 3D construido en vivo</p>
+    <p class="slide-caption reveal" style="margin-top:1.4rem; font-family:var(--font-mono); letter-spacing:.12em;">
+      3 PROMPTS · 4 AGENTES · 1 MODELO 3D
+    </p>
+  </div>
+</section>
+
+<!-- 02 — AGENDA -->
+<section class="slide">
+  <div class="glow-orb orb-violet" style="opacity:.1"></div>
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Agenda</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.6rem,4vw,3rem);">La hora, minuto a minuto</h2>
+    <div class="timeline" style="margin-top:clamp(.6rem,1.5vw,1.4rem);">
+      <div class="tl-item reveal"><div class="tl-time">00:00 — 00:15</div><div class="tl-title">Bases: qué es un agente LM</div><div class="tl-desc">Claude, el loop del agente, contexto y tokens</div></div>
+      <div class="tl-item reveal"><div class="tl-time">00:15 — 00:25</div><div class="tl-title">Prompt 1 · Proyecto base</div><div class="tl-desc">Vite + React + R3F + Tailwind + GSAP, en un solo prompt</div></div>
+      <div class="tl-item reveal"><div class="tl-time">00:25 — 00:40</div><div class="tl-title">Prompt 2 · Agentes y Skills</div><div class="tl-desc">CLAUDE.md, 4 agentes especializados, skill custom</div></div>
+      <div class="tl-item reveal"><div class="tl-time">00:40 — 00:45</div><div class="tl-title">Anatomía de un prompt · model &amp; effort</div><div class="tl-desc">Cómo escribirlos y cuánto “pensar” hacer gastar</div></div>
+      <div class="tl-item reveal"><div class="tl-time">00:45 — 01:00</div><div class="tl-title">Prompt 3 · El SPA con animación</div><div class="tl-desc">Orquestación real: technical → ui → qa</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 — SECTION: BASES -->
+<section class="slide section-divider">
+  <div class="glow-orb orb-cyan" style="opacity:.14"></div>
+  <div class="grid-bg"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot"></span>Parte 01</span>
+    <h2 class="slide-title reveal"><span class="gradient-text">Agente LM</span></h2>
+    <p class="slide-subtitle reveal">Qué es Claude cuando deja de ser un chat</p>
+  </div>
+</section>
+
+<!-- 04 — CHAT VS AGENTE -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>El salto conceptual</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Un LLM predice texto.<br>Un <span class="accent">agente</span> cierra el loop.</h2>
+    <div class="split-layout" style="margin-top:clamp(.6rem,1.6vw,1.6rem);">
+      <div class="card reveal-left">
+        <h3 class="muted">LLM / Chat</h3>
+        <p style="margin-bottom:.9rem;">Tú preguntas, él responde. Tú copias, tú pegas, tú ejecutas, tú verificas.</p>
+        <div class="arrow-flow" style="justify-content:flex-start;">
+          <span class="flow-node">prompt</span><span class="flow-arrow">→</span><span class="flow-node">texto</span>
+        </div>
+      </div>
+      <div class="card reveal">
+        <h3 class="accent">Agente LM</h3>
+        <p style="margin-bottom:.9rem;">Tiene <b>herramientas</b> (leer, escribir, ejecutar) y un <b>loop</b>: actúa, observa el resultado, corrige.</p>
+        <div class="arrow-flow" style="justify-content:flex-start;">
+          <span class="flow-node hot">plan</span><span class="flow-arrow">→</span><span class="flow-node hot">tool</span><span class="flow-arrow">→</span><span class="flow-node hot">observa</span><span class="flow-arrow">↻</span>
+        </div>
+      </div>
+    </div>
+    <p class="slide-caption reveal" style="margin-top:clamp(.8rem,1.8vw,1.6rem); text-align:center;">
+      Claude Code = Claude + terminal + filesystem + git + el loop
+    </p>
+  </div>
+</section>
+
+<!-- 05 — ANATOMIA DEL LOOP -->
+<section class="slide">
+  <div class="glow-orb orb-cyan" style="opacity:.08"></div>
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>El loop del agente</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Todo lo que hace Claude Code<br>cabe en 4 pasos</h2>
+    <div class="grid-3" style="margin-top:clamp(.7rem,1.8vw,1.8rem);">
+      <div class="card reveal"><span class="card-num">01</span><h3>Contexto</h3><p>Lee tu prompt, <code>CLAUDE.md</code>, archivos, salidas previas. Todo entra a la ventana.</p></div>
+      <div class="card reveal"><span class="card-num">02</span><h3>Decisión</h3><p>Elige la siguiente herramienta: <span class="pill pill-slate">Read</span><span class="pill pill-slate">Edit</span><span class="pill pill-slate">Bash</span></p></div>
+      <div class="card reveal"><span class="card-num">03</span><h3>Acción</h3><p>Ejecuta de verdad: escribe archivos, corre <code>pnpm build</code>, lanza subagentes.</p></div>
+      <div class="card reveal"><span class="card-num">04</span><h3>Observación</h3><p>El resultado —incluido el error— vuelve al contexto. Y el loop se repite.</p></div>
+    </div>
+    <p class="slide-body reveal" style="margin-top:clamp(.8rem,1.8vw,1.6rem); text-align:center; color:var(--text-secondary);">
+      Por eso <b class="accent">un error de compilación no es un fracaso</b>: es la observación que cierra el ciclo.
+    </p>
+  </div>
+</section>
+
+<!-- 06 — CONTEXTO -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Contexto</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">La ventana de contexto es<br>la <span class="violet">memoria de trabajo</span></h2>
+    <div class="split-layout asymmetric" style="margin-top:clamp(.6rem,1.6vw,1.4rem);">
+      <div>
+        <ul class="bullets">
+          <li class="reveal"><span>Es <b>todo</b> lo que el modelo “ve” en un turno: system prompt, CLAUDE.md, tu mensaje, archivos leídos, salidas de tools.</span></li>
+          <li class="reveal"><span>No es una base de datos. Es <b>volátil, finita y costosa</b>.</span></li>
+          <li class="reveal"><span>Si algo no está en el contexto, <b>para el modelo no existe</b>.</span></li>
+          <li class="reveal"><span>Si sobra basura, el modelo <b>se distrae</b>: peor calidad, más tokens, más lento.</span></li>
+        </ul>
+      </div>
+      <div class="card reveal-scale">
+        <p class="slide-caption" style="margin-bottom:.7rem; font-family:var(--font-mono); letter-spacing:.1em;">QUÉ OCUPA LA VENTANA</p>
+        <div style="display:flex; flex-direction:column; gap:.7rem;">
+          <div><div style="display:flex; justify-content:space-between; font-size:.8rem; margin-bottom:.25rem;"><span>Archivos leídos</span><span class="accent">▓▓▓▓▓▓</span></div><div class="bar-track"><div class="bar-fill" data-w="72%"></div></div></div>
+          <div><div style="display:flex; justify-content:space-between; font-size:.8rem; margin-bottom:.25rem;"><span>Salidas de tools</span><span class="accent">▓▓▓▓</span></div><div class="bar-track"><div class="bar-fill" data-w="48%"></div></div></div>
+          <div><div style="display:flex; justify-content:space-between; font-size:.8rem; margin-bottom:.25rem;"><span>System + CLAUDE.md</span><span class="accent">▓▓</span></div><div class="bar-track"><div class="bar-fill" data-w="22%"></div></div></div>
+          <div><div style="display:flex; justify-content:space-between; font-size:.8rem; margin-bottom:.25rem;"><span>Tu prompt</span><span class="accent">▓</span></div><div class="bar-track"><div class="bar-fill" data-w="10%"></div></div></div>
+        </div>
+        <p class="slide-caption" style="margin-top:.9rem;">Tu prompt es lo más pequeño… y lo que más decide el resultado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 — TOKENS -->
+<section class="slide">
+  <div class="glow-orb orb-violet" style="opacity:.1"></div>
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Tokens</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">La unidad de todo: <span class="accent">el token</span></h2>
+    <div class="grid-3" style="margin-top:clamp(.7rem,1.8vw,1.6rem);">
+      <div class="card reveal" style="text-align:center;"><div class="metric gradient-text">~4</div><p style="margin-top:.5rem;">caracteres por token en inglés. En español, algo menos.</p></div>
+      <div class="card reveal" style="text-align:center;"><div class="metric gradient-text">1M</div><p style="margin-top:.5rem;">tokens de ventana en los modelos largos de Opus.</p></div>
+      <div class="card reveal" style="text-align:center;"><div class="metric gradient-text">5 min</div><p style="margin-top:.5rem;">de caché. Repetir contexto pronto es barato; tarde, no.</p></div>
+    </div>
+    <div class="grid-2" style="margin-top:clamp(.8rem,1.8vw,1.6rem);">
+      <div class="card reveal">
+        <h3 class="accent">Barato</h3>
+        <p><span class="pill pill-ok">input cacheado</span> Leer el mismo archivo dos veces seguidas. Reusar CLAUDE.md.</p>
+      </div>
+      <div class="card reveal">
+        <h3 style="color:var(--warn)">Caro</h3>
+        <p><span class="pill pill-warn">output</span><span class="pill pill-warn">thinking</span> Generar código, razonar largo, volcar archivos enteros al chat.</p>
+      </div>
+    </div>
+    <p class="slide-caption reveal" style="text-align:center; margin-top:clamp(.7rem,1.6vw,1.3rem);">
+      Regla práctica: <b class="accent">carga poco, apunta bien.</b> Un <code>Grep</code> preciso vale más que 10 <code>Read</code> completos.
+    </p>
+  </div>
+</section>
+
+<!-- 08 — CONTEXT ENGINEERING -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Context engineering</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">4 reglas que cambian el resultado</h2>
+    <div class="grid-2" style="margin-top:clamp(.7rem,1.8vw,1.6rem);">
+      <div class="card reveal"><span class="card-num">01</span><h3>Escribe <code>CLAUDE.md</code></h3><p>Es el contexto que <b>siempre</b> está. Convenciones, stack, reglas duras. Corto y mandatorio.</p></div>
+      <div class="card reveal"><span class="card-num">02</span><h3>Compacta a tiempo</h3><p><kbd>/clear</kbd> entre tareas independientes. Un contexto sucio arrastra decisiones viejas.</p></div>
+      <div class="card reveal"><span class="card-num">03</span><h3>Delega a subagentes</h3><p>Cada subagente tiene <b>su propia ventana</b>. Explora en la suya, te devuelve la conclusión.</p></div>
+      <div class="card reveal"><span class="card-num">04</span><h3>Carga bajo demanda</h3><p>Las Skills solo entran cuando aplican. <i>Progressive disclosure</i>, no un manual entero.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 09 — SECTION: PROYECTO BASE -->
+<section class="slide section-divider">
+  <div class="glow-orb orb-cyan" style="opacity:.14"></div>
+  <div class="grid-bg"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot"></span>Parte 02 · Prompt 1</span>
+    <h2 class="slide-title reveal"><span class="gradient-text">Proyecto base</span></h2>
+    <p class="slide-subtitle reveal">De carpeta vacía a <code>pnpm dev</code> compilando</p>
+  </div>
+</section>
+
+<!-- 10 — STACK -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Prompt 1</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Un prompt, un andamio completo</h2>
+    <div class="split-layout" style="margin-top:clamp(.6rem,1.6vw,1.4rem);">
+      <div class="reveal-left">
+        <p class="slide-caption" style="margin-bottom:.7rem; font-family:var(--font-mono); letter-spacing:.1em;">EL STACK</p>
+        <div style="line-height:2.2;">
+          <span class="pill pill-cyan">Vite</span><span class="pill pill-cyan">React 19</span><span class="pill pill-cyan">TypeScript</span>
+          <span class="pill pill-violet">@react-three/fiber 9</span><span class="pill pill-violet">drei 10</span><span class="pill pill-violet">postprocessing</span>
+          <span class="pill pill-slate">tailwind v4</span><span class="pill pill-slate">gsap</span><span class="pill pill-slate">motion</span><span class="pill pill-slate">lenis</span><span class="pill pill-slate">maath</span>
+        </div>
+        <ul class="bullets" style="margin-top:clamp(.9rem,2vw,1.6rem);">
+          <li class="reveal"><span><b>React 19 no es opcional:</b> R3F 9 pide <code>react &gt;=19 &lt;19.3</code>.</span></li>
+          <li class="reveal"><span>La estructura ya contempla <code>config/sequence.ts</code> — el guion de la escena.</span></li>
+          <li class="reveal"><span>Cierra con <b>“ejecuta y corrige hasta que compile limpio”</b>.</span></li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="code-block"><span class="c-com"># PROMPT-1-PROYECTO-BASE.md</span>
+
+<span class="c-fn">pnpm create vite@latest</span> cv-3d-spa \
+  --template react-ts
+<span class="c-fn">cd</span> cv-3d-spa
+
+<span class="c-fn">pnpm add</span> react@^19.2.0 react-dom@^19.2.0
+<span class="c-fn">pnpm add</span> three @react-three/fiber \
+  @react-three/drei \
+  @react-three/postprocessing postprocessing
+<span class="c-fn">pnpm add</span> gsap @gsap/react motion lenis \
+  maath clsx
+<span class="c-fn">pnpm add</span> tailwindcss @tailwindcss/vite
+<span class="c-fn">pnpm add -D</span> @types/three
+
+<span class="c-fn">pnpm install &amp;&amp; pnpm dev</span>
+
+<span class="c-com">// Si hay ERR_PNPM_PEER_DEP_ISSUES:
+// alinea versiones. NUNCA --force.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 — POR QUE SEPARAR -->
+<section class="slide">
+  <div class="glow-orb orb-violet" style="opacity:.08"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot"></span>La decisión clave</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">La estructura de carpetas<br><span class="accent">es el contrato entre agentes</span></h2>
+    <div class="arrow-flow" style="margin-top:clamp(1rem,2.4vw,2.2rem);">
+      <div class="flow-node hot reveal-scale" style="border-color:rgba(52,211,153,.5); color:var(--ok)">canvas/<br><span style="font-size:.75em; opacity:.7">technical-agent</span></div>
+      <div class="flow-node hot reveal-scale" style="border-color:rgba(139,92,246,.5); color:#a78bfa">sections/ · ui/<br><span style="font-size:.75em; opacity:.7">ui-agent</span></div>
+      <div class="flow-node hot reveal-scale" style="border-color:rgba(52,211,153,.5); color:var(--ok)">data/ · types/ · hooks/<br><span style="font-size:.75em; opacity:.7">technical-agent</span></div>
+      <div class="flow-node hot reveal-scale" style="border-color:rgba(251,191,36,.5); color:var(--warn)">todo (solo lectura)<br><span style="font-size:.75em; opacity:.7">qa-agent</span></div>
+    </div>
+    <p class="slide-body reveal" style="margin-top:clamp(1rem,2.4vw,2rem); color:var(--text-secondary); max-width:720px; margin-left:auto; margin-right:auto;">
+      Si dos agentes pueden tocar el mismo archivo, <b class="accent">se pisan</b>. La separación no es estética: es lo que hace posible la orquestación.
+    </p>
+  </div>
+</section>
+
+<!-- 12 — SECTION: AGENTES Y SKILLS -->
+<section class="slide section-divider">
+  <div class="glow-orb orb-violet" style="opacity:.14"></div>
+  <div class="grid-bg"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot"></span>Parte 03 · Prompt 2</span>
+    <h2 class="slide-title reveal"><span class="gradient-text">Agentes y Skills</span></h2>
+    <p class="slide-subtitle reveal">Especialización, aislamiento y conocimiento reutilizable</p>
+  </div>
+</section>
+
+<!-- 13 — SKILLS -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Skills</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Una Skill es <span class="accent">conocimiento</span>,<br>no una acción</h2>
+    <div class="split-layout" style="margin-top:clamp(.6rem,1.6vw,1.4rem);">
+      <div>
+        <ul class="bullets">
+          <li class="reveal"><span>Un <code>SKILL.md</code> con <b>frontmatter</b>: <code>name</code> + <code>description</code>.</span></li>
+          <li class="reveal"><span>La <code>description</code> es lo único siempre cargado. Es el <b>“cuándo usarme”</b>.</span></li>
+          <li class="reveal"><span>El cuerpo entra solo al invocarse: <b>progressive disclosure</b>.</span></li>
+          <li class="reveal"><span>Puede traer <code>scripts/</code>, <code>assets/</code>, <code>references/</code>.</span></li>
+          <li class="reveal"><span>Esta presentación se generó con la skill <span class="pill pill-cyan">html-slides</span></span></li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="code-block"><span class="c-com">--- .claude/skills/three-fiber-scroll.md</span>
+<span class="c-key">name</span>: three-fiber-scroll
+<span class="c-key">description</span>: |
+  Patrón para integrar un modelo 3D
+  con scroll usando ScrollControls +
+  useScroll de drei.
+  <span class="c-str">Use this skill when</span> se necesita
+  configurar la integración entre el
+  scroll del SPA y el modelo 3D.
+<span class="c-com">---</span>
+
+<span class="c-tag"># Three Fiber + Scroll Pattern</span>
+
+<span class="c-fn">useFrame</span>(() =&gt; {
+  ref.current.rotation.x =
+    scroll.offset * Math.PI * <span class="c-str">2</span>
+})
+
+<span class="c-com">## Reglas críticas</span>
+- useFrame NUNCA llama setState
+- Cada sección = h-screen
+- Siempre useGLTF.preload()</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 — AGENTES -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Agentes</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Un agente es <span class="violet">una ventana propia</span><br>+ un rol + herramientas limitadas</h2>
+    <div class="grid-2" style="margin-top:clamp(.6rem,1.6vw,1.4rem);">
+      <div class="card reveal" style="border-color:rgba(59,130,246,.4)">
+        <h3 style="color:#60a5fa">orchestrator</h3>
+        <p>No escribe código. Descompone, delega, verifica compatibilidad. <b>Todo pasa por él.</b></p>
+      </div>
+      <div class="card reveal" style="border-color:rgba(52,211,153,.4)">
+        <h3 style="color:var(--ok)">technical-agent</h3>
+        <p><code>canvas/ data/ types/ hooks/</code> — Three.js, R3F, scroll, tipos.<br><span class="pill pill-slate">Read</span><span class="pill pill-slate">Write</span><span class="pill pill-slate">Edit</span><span class="pill pill-slate">Bash</span></p>
+      </div>
+      <div class="card reveal" style="border-color:rgba(139,92,246,.4)">
+        <h3 style="color:#a78bfa">ui-agent</h3>
+        <p><code>sections/ ui/</code> — Tailwind, GSAP, layout responsive.<br><span class="pill pill-slate">Read</span><span class="pill pill-slate">Write</span><span class="pill pill-slate">Edit</span> <span class="muted" style="font-size:.8em">(sin Bash)</span></p>
+      </div>
+      <div class="card reveal" style="border-color:rgba(251,191,36,.4)">
+        <h3 style="color:var(--warn)">qa-agent</h3>
+        <p>Nunca modifica código. Lee, ejecuta checks, reporta al orchestrator.<br><span class="pill pill-slate">Read</span><span class="pill pill-slate">Bash</span><span class="pill pill-slate">Grep</span></p>
+      </div>
+    </div>
+    <p class="slide-caption reveal" style="text-align:center; margin-top:clamp(.7rem,1.6vw,1.2rem);">
+      El campo <code>tools</code> del frontmatter no es una sugerencia: <b class="accent">es una cárcel</b>. qa-agent físicamente no puede escribir.
+    </p>
+  </div>
+</section>
+
+<!-- 15 — ANATOMIA DE UN AGENTE -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Anatomía</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">El <code>description</code> es el <span class="accent">router</span></h2>
+    <div class="split-layout asymmetric" style="margin-top:clamp(.6rem,1.6vw,1.4rem);">
+      <div class="reveal">
+        <div class="code-block"><span class="c-com">--- .claude/agents/ui-agent.md</span>
+<span class="c-key">name</span>: ui-agent
+<span class="c-key">description</span>: |
+  Construye componentes React con Tailwind,
+  animaciones GSAP ScrollTrigger, layout responsive.
+  <span class="c-str">Use this agent when</span> se necesita crear o
+  modificar componentes visuales HTML.
+
+  <span class="c-tag">&lt;example&gt;</span>
+  user: <span class="c-str">"Crea las cards de skills"</span>
+  assistant: <span class="c-str">"Construiré SkillsSection.tsx
+  con glassmorphism y entrada staggered."</span>
+  <span class="c-tag">&lt;/example&gt;</span>
+<span class="c-key">model</span>: inherit
+<span class="c-key">color</span>: magenta
+<span class="c-key">tools</span>: [<span class="c-str">"Read"</span>, <span class="c-str">"Write"</span>, <span class="c-str">"Edit"</span>, <span class="c-str">"Glob"</span>, <span class="c-str">"Grep"</span>]
+<span class="c-com">---</span>
+
+Eres el agente de UI/UX...
+<span class="c-com">**Archivos que NUNCA tocas:** canvas/, data/</span></div>
+      </div>
+      <div>
+        <ul class="bullets">
+          <li class="reveal"><span><b>Los <code>&lt;example&gt;</code> importan.</b> Es cómo el orchestrator aprende a enrutar.</span></li>
+          <li class="reveal"><span><b>“Archivos que NUNCA tocas”</b> en el system prompt del agente, no solo en CLAUDE.md.</span></li>
+          <li class="reveal"><span>Los <b>patrones de código</b> van dentro del agente: el GSAP boilerplate, el <code>useFrame</code>.</span></li>
+          <li class="reveal"><span><b>Troubleshooting conocido</b> ahorra ciclos: <i>“modelo negro → falta Environment”</i>.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 16 — CLAUDE.MD -->
+<section class="slide">
+  <div class="glow-orb orb-cyan" style="opacity:.08"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot"></span>CLAUDE.md</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">La regla que lo amarra todo</h2>
+    <div class="card reveal-scale" style="max-width:820px; margin:clamp(.8rem,2vw,1.8rem) auto 0; text-align:left; border-color:rgba(34,211,238,.35);">
+      <div class="code-block" style="border:none; background:transparent; padding:0;"><span class="c-tag">## REGLA OBLIGATORIA</span>
+Todas las tareas de desarrollo <span class="c-str">DEBEN</span> pasar por el agente orchestrator.
+<span class="c-str">NUNCA</span> ejecutes tareas directamente — siempre delega:
+  <span class="c-key">ui-agent</span>        → todo lo visual
+  <span class="c-key">technical-agent</span> → todo lo técnico (3D, hooks, tipos)
+  <span class="c-key">qa-agent</span>        → verificación (build, responsive, perf)</div>
+    </div>
+    <p class="slide-body reveal" style="margin-top:clamp(.9rem,2vw,1.6rem); color:var(--text-secondary); max-width:760px; margin-left:auto; margin-right:auto;">
+      CLAUDE.md entra en <b>cada</b> turno. Por eso: <b class="accent">corto, imperativo, sin relleno.</b> Cada línea que agregas la pagas en todos los prompts del proyecto.
+    </p>
+  </div>
+</section>
+
+<!-- 17 — SECTION: PROMPT -->
+<section class="slide section-divider">
+  <div class="glow-orb orb-cyan" style="opacity:.14"></div>
+  <div class="grid-bg"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot"></span>Parte 04</span>
+    <h2 class="slide-title reveal"><span class="gradient-text">El prompt</span></h2>
+    <p class="slide-subtitle reveal">Y cuánto quieres que Claude piense</p>
+  </div>
+</section>
+
+<!-- 18 — ANATOMIA DE UN PROMPT -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Anatomía de un prompt</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">5 piezas. Ninguna opcional.</h2>
+    <div class="timeline" style="margin-top:clamp(.6rem,1.5vw,1.3rem);">
+      <div class="tl-item reveal"><div class="tl-time">01 · CONTEXTO</div><div class="tl-title">Dónde estás parado</div><div class="tl-desc"><i>“Estoy en un proyecto React + Three.js ya inicializado.”</i></div></div>
+      <div class="tl-item reveal"><div class="tl-time">02 · TAREA</div><div class="tl-title">Un verbo, un objetivo</div><div class="tl-desc"><i>“Configura toda la capa de agentes, skills y CLAUDE.md.”</i></div></div>
+      <div class="tl-item reveal"><div class="tl-time">03 · RESTRICCIONES</div><div class="tl-title">Lo que NO debe hacer</div><div class="tl-desc"><i>“No modifiques ningún archivo de src/ en este paso.”</i></div></div>
+      <div class="tl-item reveal"><div class="tl-time">04 · FORMATO</div><div class="tl-title">Cómo se ve el output</div><div class="tl-desc">Bloques de código literales, rutas exactas, interfaces completas.</div></div>
+      <div class="tl-item reveal"><div class="tl-time">05 · VERIFICACIÓN</div><div class="tl-title">Cómo sabe que terminó</div><div class="tl-desc"><i>“Ejecuta pnpm build y corrige hasta que compile limpio.”</i></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 19 — MODEL & EFFORT -->
+<section class="slide">
+  <div class="glow-orb orb-violet" style="opacity:.1"></div>
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>model &amp; effort</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Dos perillas que casi nadie toca</h2>
+    <div class="split-layout" style="margin-top:clamp(.6rem,1.6vw,1.4rem);">
+      <div class="card reveal-left">
+        <h3 class="accent">model</h3>
+        <p style="margin-bottom:.9rem;">Qué cerebro corre la tarea. En un agente: <code>model: inherit</code> hereda el de la sesión.</p>
+        <table class="cmp">
+          <tr><th>Modelo</th><th>Para</th></tr>
+          <tr><td>Opus 4.8</td><td>Arquitectura, orquestación</td></tr>
+          <tr><td>Sonnet 5</td><td>Implementación diaria</td></tr>
+          <tr><td>Haiku 4.5</td><td>Tareas mecánicas, alto volumen</td></tr>
+        </table>
+      </div>
+      <div class="card reveal">
+        <h3 class="violet">effort</h3>
+        <p style="margin-bottom:.9rem;">Cuánto razona antes de actuar. Más effort = más tokens de <i>thinking</i> = más lento y caro.</p>
+        <table class="cmp">
+          <tr><th>Nivel</th><th>Cuándo</th></tr>
+          <tr><td>low</td><td>Renombrar, formatear, mover</td></tr>
+          <tr><td>medium</td><td>Feature acotada — el default</td></tr>
+          <tr><td>high</td><td>Bug sutil, diseño de API</td></tr>
+          <tr><td>max</td><td>Refactor grande, race condition</td></tr>
+        </table>
+      </div>
+    </div>
+    <p class="slide-caption reveal" style="text-align:center; margin-top:clamp(.7rem,1.6vw,1.2rem);">
+      Anti-patrón: <b style="color:var(--warn)">max effort para todo.</b> Quemas tokens y contexto sin ganar precisión en tareas triviales.
+    </p>
+  </div>
+</section>
+
+<!-- 20 — SECTION: PROMPT 3 -->
+<section class="slide section-divider">
+  <div class="glow-orb orb-cyan" style="opacity:.16"></div>
+  <div class="glow-orb orb-violet" style="opacity:.12"></div>
+  <div class="grid-bg"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot pulse"></span>Parte 05 · Prompt 3</span>
+    <h2 class="slide-title reveal"><span class="gradient-text">Construir el SPA</span></h2>
+    <p class="slide-subtitle reveal">3D + scroll + animación, orquestado por agentes</p>
+  </div>
+</section>
+
+<!-- 21 — FASES -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Orquestación real</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">El orden <span class="accent">no es negociable</span></h2>
+    <div class="arrow-flow" style="margin:clamp(.9rem,2.2vw,1.8rem) 0;">
+      <div class="flow-node hot reveal-scale" style="border-color:rgba(52,211,153,.5); color:var(--ok)">FASE 1 · technical</div>
+      <span class="flow-arrow reveal">→</span>
+      <div class="flow-node hot reveal-scale" style="border-color:rgba(139,92,246,.5); color:#a78bfa">FASE 2 · ui</div>
+      <span class="flow-arrow reveal">→</span>
+      <div class="flow-node hot reveal-scale" style="border-color:rgba(251,191,36,.5); color:var(--warn)">FASE 3 · qa</div>
+      <span class="flow-arrow reveal">↻</span>
+    </div>
+    <div class="grid-3">
+      <div class="card reveal"><h3 style="color:var(--ok)">1 · Infraestructura</h3><p>Datos del CV, tipos, <code>Canvas</code> + <code>ScrollControls pages={5}</code>, <code>Model.tsx</code> con <code>useGLTF</code> + <code>useScroll</code>, Lighting, CameraRig.</p></div>
+      <div class="card reveal"><h3 style="color:#a78bfa">2 · Secciones</h3><p>Hero, Skills, Frameworks, Languages, Experience. Cyberpunk, glassmorphism, GSAP ScrollTrigger, cards a los laterales del modelo.</p></div>
+      <div class="card reveal"><h3 style="color:var(--warn)">3 · Verificación</h3><p>Build limpio, modelo &lt;5MB, <code>useFrame</code> sin <code>setState</code>, responsive, cero texto hardcodeado. Reporta ✅/❌ y reasigna.</p></div>
+    </div>
+    <p class="slide-caption reveal" style="text-align:center; margin-top:clamp(.7rem,1.6vw,1.2rem);">
+      Si el ui-agent corre antes que el technical-agent, importa datos que <b>todavía no existen</b>.
+    </p>
+  </div>
+</section>
+
+<!-- 22 — LA ANIMACION -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>La animación</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Dos motores. <span class="accent">Nunca se cruzan.</span></h2>
+    <div class="split-layout" style="margin-top:clamp(.6rem,1.6vw,1.3rem);">
+      <div class="reveal-left">
+        <p class="slide-caption" style="margin-bottom:.6rem; font-family:var(--font-mono); letter-spacing:.1em;">3D → useFrame (R3F)</p>
+        <div class="code-block"><span class="c-key">const</span> scroll = <span class="c-fn">useScroll</span>()
+<span class="c-key">const</span> ref = <span class="c-fn">useRef</span>&lt;THREE.Group&gt;(<span class="c-key">null</span>)
+
+<span class="c-fn">useFrame</span>(() =&gt; {
+  <span class="c-key">if</span> (!ref.current) <span class="c-key">return</span>
+  <span class="c-com">// solo eje X, 0 → 2π</span>
+  ref.current.rotation.x =
+    scroll.offset * Math.PI * <span class="c-str">2</span>
+})
+
+<span class="c-com">// NUNCA setState aquí dentro</span></div>
+      </div>
+      <div class="reveal">
+        <p class="slide-caption" style="margin-bottom:.6rem; font-family:var(--font-mono); letter-spacing:.1em;">DOM → GSAP ScrollTrigger</p>
+        <div class="code-block"><span class="c-fn">useGSAP</span>(() =&gt; {
+  gsap.<span class="c-fn">from</span>(<span class="c-str">'.animate-item'</span>, {
+    y: <span class="c-str">60</span>,
+    opacity: <span class="c-str">0</span>,
+    duration: <span class="c-str">0.8</span>,
+    stagger: <span class="c-str">0.1</span>,
+    ease: <span class="c-str">'power3.out'</span>,
+    scrollTrigger: {
+      trigger: containerRef.current,
+      start: <span class="c-str">'top 80%'</span>,
+    },
+  })
+}, { scope: containerRef })</div>
+      </div>
+    </div>
+    <div class="card reveal" style="margin-top:clamp(.8rem,1.8vw,1.4rem); border-color:rgba(251,191,36,.35); text-align:center;">
+      <p><b style="color:var(--warn)">Regla dura del CLAUDE.md:</b> GSAP jamás anima objetos Three.js. <code>useFrame</code> jamás toca el DOM. Cruzarlos es el bug #1 de este stack.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 23 — TROUBLESHOOTING -->
+<section class="slide">
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Troubleshooting</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Lo que va a pasar en vivo</h2>
+    <div class="card reveal-scale" style="margin-top:clamp(.7rem,1.8vw,1.5rem);">
+      <table class="cmp">
+        <tr><th>Síntoma</th><th>Causa</th><th>Quién lo arregla</th></tr>
+        <tr><td>Modelo se ve negro</td><td>Falta <code>&lt;Environment preset="city" /&gt;</code></td><td><span class="pill pill-ok">technical</span></td></tr>
+        <tr><td>Cards tapan el modelo</td><td>Falta <code>md:w-1/2</code> en el layout</td><td><span class="pill pill-violet">ui</span></td></tr>
+        <tr><td>El scroll salta</td><td><code>damping</code> mal ajustado en ScrollControls</td><td><span class="pill pill-ok">technical</span></td></tr>
+        <tr><td>Jank al rotar</td><td><code>useFrame</code> llamando <code>setState</code></td><td><span class="pill pill-ok">technical</span></td></tr>
+        <tr><td>Secciones desalineadas</td><td><code>pages={5}</code> ≠ nº de secciones <code>h-screen</code></td><td><span class="pill pill-ok">technical</span></td></tr>
+      </table>
+    </div>
+    <p class="slide-caption reveal" style="text-align:center; margin-top:clamp(.8rem,1.8vw,1.4rem);">
+      Todo esto ya está escrito en <code>orchestrator.md</code> → el agente no lo re-descubre, lo <b class="accent">recuerda</b>.
+    </p>
+  </div>
+</section>
+
+<!-- 24 — TAKEAWAYS -->
+<section class="slide">
+  <div class="glow-orb orb-cyan" style="opacity:.1"></div>
+  <div class="slide-content">
+    <span class="eyebrow reveal"><span class="dot"></span>Para llevar</span>
+    <h2 class="slide-title reveal" style="font-size:clamp(1.5rem,3.6vw,2.8rem);">Lo que quiero que recuerden</h2>
+    <ul class="bullets" style="margin-top:clamp(.8rem,2vw,1.6rem); font-size:clamp(.9rem,1.7vw,1.3rem);">
+      <li class="reveal"><span>El contexto es <b>finito y volátil</b>. Cárgalo con intención, límpialo sin culpa.</span></li>
+      <li class="reveal"><span>Un buen prompt trae <b>contexto, tarea, restricciones, formato y verificación</b>.</span></li>
+      <li class="reveal"><span>Una <b>Skill</b> es conocimiento reutilizable. Un <b>agente</b> es una ventana aislada con un rol.</span></li>
+      <li class="reveal"><span>La <b>separación de archivos</b> es lo que hace que varios agentes no se pisen.</span></li>
+      <li class="reveal"><span><code>model</code> y <code>effort</code> son perillas reales: <b>ajústalas a la tarea</b>, no al miedo.</span></li>
+      <li class="reveal"><span>El agente <b>no adivina</b>: le das el loop y le das cómo verificar. El resto lo hace él.</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 25 — CIERRE -->
+<section class="slide">
+  <div class="glow-orb orb-cyan"></div>
+  <div class="glow-orb orb-violet"></div>
+  <div class="grid-bg"></div>
+  <div class="slide-content" style="text-align:center;">
+    <span class="eyebrow reveal"><span class="dot pulse"></span>Ahora sí</span>
+    <h2 class="slide-title reveal glow-text">Abramos la <span class="gradient-text">terminal</span></h2>
+    <p class="slide-subtitle reveal" style="margin-top:.6rem;">Tres prompts. Una hora. Un CV que rota mientras haces scroll.</p>
+    <div class="reveal" style="margin-top:clamp(1.2rem,2.6vw,2rem);">
+      <span class="pill pill-cyan">PROMPT-1-PROYECTO-BASE.md</span>
+      <span class="pill pill-violet">PROMPT-2-AGENTES-SKILLS.md</span>
+      <span class="pill pill-ok">PROMPT-3-CONSTRUIR-SPA.md</span>
+    </div>
+    <p class="slide-caption reveal" style="margin-top:clamp(1.2rem,2.6vw,2rem); font-family:var(--font-mono); letter-spacing:.15em;">
+      ¿PREGUNTAS?
+    </p>
+  </div>
+</section>
+
+<nav class="nav" id="nav"></nav>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const nav = document.getElementById('nav');
+const progress = document.getElementById('progress');
+const slideNum = document.getElementById('slideNum');
+let currentSlide = 0;
+
+slides.forEach((_, i) => {
+  const dot = document.createElement('button');
+  dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+  dot.setAttribute('aria-label', `Ir a la diapositiva ${i + 1}`);
+  dot.onclick = () => goToSlide(i);
+  nav.appendChild(dot);
+});
+
+function goToSlide(index) {
+  if (index < 0 || index >= slides.length) return;
+  currentSlide = index;
+  slides[index].scrollIntoView({ behavior: 'smooth' });
+  updateNav();
+}
+
+function updateNav() {
+  document.querySelectorAll('.nav-dot').forEach((dot, i) => dot.classList.toggle('active', i === currentSlide));
+  progress.style.width = ((currentSlide + 1) / slides.length * 100) + '%';
+  slideNum.textContent = String(currentSlide + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(e.key)) { e.preventDefault(); goToSlide(currentSlide + 1); }
+  else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); goToSlide(currentSlide - 1); }
+  else if (e.key === 'Home') { e.preventDefault(); goToSlide(0); }
+  else if (e.key === 'End') { e.preventDefault(); goToSlide(slides.length - 1); }
+});
+
+let touchStartY = 0;
+document.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
+document.addEventListener('touchend', (e) => {
+  const diff = touchStartY - e.changedTouches[0].clientY;
+  if (Math.abs(diff) > 50) goToSlide(currentSlide + (diff > 0 ? 1 : -1));
+});
+
+function triggerAnimations(slide) {
+  slide.querySelectorAll('.reveal, .reveal-scale, .reveal-left, .reveal-blur').forEach((el, i) => {
+    setTimeout(() => el.classList.add('visible'), i * 90);
+  });
+  slide.querySelectorAll('.bar-fill').forEach((el, i) => {
+    setTimeout(() => { el.style.width = el.dataset.w; }, 400 + i * 140);
+  });
+}
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      currentSlide = Array.from(slides).indexOf(entry.target);
+      updateNav();
+      triggerAnimations(entry.target);
+    }
+  });
+}, { threshold: 0.5 });
+
+slides.forEach(slide => observer.observe(slide));
+updateNav();
+triggerAnimations(slides[0]);
+</script>
+</body>
+</html>

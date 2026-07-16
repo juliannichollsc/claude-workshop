@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* Tipografía distintiva (skill frontend-design): display grotesk técnico + mono estilo terminal.
+   Registrada en @theme para que las utilidades font-display / font-mono la tomen. */
+@theme {
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* Paleta "Toxic" — testing-background.md (preset AnimatedGradient). Dark = default. */
+:root,
+:root[data-theme='dark'] {
+  --color-bg: #050d05;
+  --color-surface: rgba(8, 26, 8, 0.72);
+  --color-surface-strong: rgba(6, 20, 6, 0.86);
+  --color-accent: #39ff14;
+  --color-accent-secondary: #7cff3d;
+  --color-text: #f1f5f9;
+  --color-text-muted: #9db8a4;
+  --color-border: rgba(57, 255, 20, 0.16);
+  --expo-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Light = par cálido-contrario (teoría del color: verde neón ~110° <-> naranja/rojo-naranja ~20-30°) */
+:root[data-theme='light'] {
+  --color-bg: #fdf6ec;
+  --color-surface: rgba(255, 244, 230, 0.82);
+  --color-surface-strong: rgba(255, 246, 234, 0.92);
+  --color-accent: #ea580c;
+  --color-accent-secondary: #b91c1c;
+  --color-text: #2b1a0a;
+  --color-text-muted: #7c5a3a;
+  --color-border: rgba(234, 88, 12, 0.22);
+}
+
+/* OJO: nada de `* { margin: 0; padding: 0 }` aquí. Una regla sin @layer gana a TODA regla
+   dentro de una capa, sea cual sea su especificidad — y las utilidades de Tailwind v4 viven
+   en `@layer utilities`. Ese reset anulaba p-*, m-*, px-*, py-* y space-y-* en toda la app.
+   El preflight de Tailwind (`@layer base`) ya aplica box-sizing + margin/padding a cero. */
+
+@layer base {
+  html, body, #root {
+    width: 100%;
+    height: 100%;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    overflow: hidden;
+  }
+}
+
+/* === Utilidades de diseño (skills frontend-design + ui-ux-pro-max) ===
+   En `@layer components` para que las utilidades de Tailwind puedan sobrescribirlas. */
+@layer components {
+  .font-display { font-family: var(--font-display); }
+  .font-mono-ui { font-family: var(--font-mono); }
+
+  /* Glass legible sobre el fondo 3D animado: surface + blur fuerte para que el verde
+     se filtre pero el texto quede sobre superficie sólida. */
+  .glass {
+    background: var(--color-surface);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border: 1px solid var(--color-border);
+  }
+
+  .gradient-text {
+    background: linear-gradient(100deg, var(--color-accent), var(--color-accent-secondary) 75%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .glow-text {
+    text-shadow: 0 0 45px color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+
+  .glow-dot {
+    box-shadow: 0 0 10px var(--color-accent);
+  }
+
+  /* Scrim radial para bloques de texto sin card (hero) — garantiza contraste sobre el fondo. */
+  .text-scrim {
+    background: radial-gradient(
+      120% 120% at 20% 40%,
+      color-mix(in srgb, var(--color-bg) 82%, transparent) 0%,
+      transparent 70%
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* Theme toggle transition — "polygon" effect, theme-toggle.rdsx.dev */
+::view-transition-group(root) {
+  animation-duration: 0.7s;
+  animation-timing-function: var(--expo-out);
+}
+
+::view-transition-new(root) {
+  animation-name: reveal-light;
+  animation-fill-mode: both;
+}
+
+::view-transition-old(root),
+[data-theme='dark']::view-transition-old(root) {
+  animation: none;
+  animation-fill-mode: both;
+  z-index: -1;
+}
+
+[data-theme='dark']::view-transition-new(root) {
+  animation-name: reveal-dark;
+  animation-fill-mode: both;
+}
+
+@keyframes reveal-dark {
+  from { clip-path: polygon(50% -71%, -50% 71%, -50% 71%, 50% -71%); }
+  to   { clip-path: polygon(50% -71%, -50% 71%, 50% 171%, 171% 50%); }
+}
+
+@keyframes reveal-light {
+  from { clip-path: polygon(171% 50%, 50% 171%, 50% 171%, 171% 50%); }
+  to   { clip-path: polygon(171% 50%, 50% 171%, -50% 71%, 50% -71%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-new(root),
+  ::view-transition-old(root) { animation: none !important; }
+}
