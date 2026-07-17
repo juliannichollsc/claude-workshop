@@ -12,6 +12,7 @@ Los subagentes corren en `model: sonnet` (eficiencia de tokens); la sesión prin
 ## Documentación — fuentes de verdad
 - `docs/PROMPT-1-PROYECTO-BASE.md` — paso 1: andamio + hero. Nada más.
 - `docs/PROMPT-2-CONSTRUIR-SPA.md` — paso 2: agentes, escena 3D, tema y las 7 secciones. Se ejecuta en sesión nueva.
+- `docs/PROMPT-3-FONDO-Y-DEPLOY.md` — paso 3: arreglar el fondo shader (la `#version` duplicada y el frustum culling), elegir paleta y desplegar a Vercel. Sesión nueva.
 - `docs/ANIMACION-3D.md` — la escena 3D y las tres trampas de arquitectura (shader dentro del Canvas, `pages` medido, nada de ScrollTrigger).
 - `docs/CONTENIDO-CLAUDE.md` — el texto exacto de las secciones y los errores de datos ya cometidos.
 
